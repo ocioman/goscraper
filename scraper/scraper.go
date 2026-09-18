@@ -128,11 +128,13 @@ func ExtractPageData(HTML, pageURL string) (PageData, error) {
 	var pd PageData
 	var err error
 
-	pd.PageUrl, err = url.Parse(pageURL)
+	pd.pageUrl, err = url.Parse(pageURL)
 
 	if err != nil {
 		return PageData{}, err
 	}
+
+	pd.PageUrlString = pd.pageUrl.String()
 
 	pd.FirstParagraph, err = GetFirstParagraphFromHTML(HTML)
 
@@ -146,13 +148,13 @@ func ExtractPageData(HTML, pageURL string) (PageData, error) {
 		return PageData{}, err
 	}
 
-	pd.OutGoingLinks, err = GetUrlsFromHTML(HTML, pd.PageUrl)
+	pd.OutGoingLinks, err = GetUrlsFromHTML(HTML, pd.pageUrl)
 
 	if err != nil {
 		return PageData{}, err
 	}
 
-	pd.ImageURLs, err = GetImagesFromHTML(HTML, pd.PageUrl)
+	pd.ImageURLs, err = GetImagesFromHTML(HTML, pd.pageUrl)
 
 	if err != nil {
 		return PageData{}, err
@@ -166,12 +168,23 @@ Casi base: l'URL fornito ha un host diverso da quello di partenza || outgoing li
 Sviluppo del recursion tree: ogni outgoing link puo avere n figli che possono essere foglie o nodi (se si verifica uno dei casi base)
 */
 
-/*
-Page data lo passo come puntatore perche' se con l'append supero la capacity, la copia del puntatore punta a una nuova zona di memoria
-e questa cosa non e' visibile al chiamante
-*/
+func CrawlWebsite(rawCurrUrl string, cfg *Config) {
+	defer func() {
+		<-cfg.ConcurrencyControl
+		cfg.Wg.Done()
+	}()
 
-func CrawlWebsite(baseUrl *url.URL, rawCurrUrl string, pagesOcc map[string]struct{}, data *[]PageData) {
+	cfg.ConcurrencyControl <- struct{}{}
+
+	cfg.Mu.RLock()
+
+	if len(cfg.PagesData) >= cfg.MaxPages {
+		cfg.Mu.RUnlock()
+		return
+	}
+
+	cfg.Mu.RUnlock()
+
 	parsedCurrUrl, err := url.Parse(rawCurrUrl)
 
 	if err != nil {
@@ -184,17 +197,26 @@ func CrawlWebsite(baseUrl *url.URL, rawCurrUrl string, pagesOcc map[string]struc
 		log.Fatal(err)
 	}
 
-	if _, ok := pagesOcc[normalizedCurrUrl]; ok {
+	cfg.Mu.Lock()
+
+	if _, ok := cfg.PagesOccs[normalizedCurrUrl]; ok {
+		cfg.Mu.Unlock()
 		return
 	}
 
-	if parsedCurrUrl.Host != baseUrl.Host {
+	cfg.PagesOccs[normalizedCurrUrl] = struct{}{}
+
+	cfg.Mu.Unlock()
+
+	if parsedCurrUrl.Host != cfg.BaseUrl.Host {
 		return
 	}
-
-	pagesOcc[normalizedCurrUrl] = struct{}{}
 
 	rawHTML, err := GetHTML(rawCurrUrl)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	pgData, err := ExtractPageData(rawHTML, rawCurrUrl)
 
@@ -202,9 +224,14 @@ func CrawlWebsite(baseUrl *url.URL, rawCurrUrl string, pagesOcc map[string]struc
 		log.Fatal(err)
 	}
 
-	*data = append(*data, pgData)
+	cfg.Mu.Lock()
+
+	cfg.PagesData[normalizedCurrUrl] = pgData
+
+	cfg.Mu.Unlock()
 
 	for _, ol := range pgData.OutGoingLinks {
-		CrawlWebsite(baseUrl, ol, pagesOcc, data)
+		cfg.Wg.Add(1)
+		go CrawlWebsite(ol, cfg)
 	}
 }

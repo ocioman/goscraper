@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strconv"
+	"sync"
 )
 
 func main() {
@@ -13,7 +15,7 @@ func main() {
 
 	arguments := os.Args[1:]
 
-	if len(arguments) > 1 {
+	if len(arguments) > 3 {
 		log.Fatal("too many arguments provided")
 	} else if len(arguments) == 0 {
 		log.Fatal("no website provided")
@@ -27,8 +29,42 @@ func main() {
 		log.Fatal(err)
 	}
 
-	data := make([]scraper.PageData, 0)
-	pagesOcc := make(map[string]struct{})
+	maxGoRoutines := 5
+	maxPages := 10
 
-	scraper.CrawlWebsite(parsedBaseURL, arguments[0], pagesOcc, &data)
+	if len(arguments) == 2 {
+		maxGoRoutines, err = strconv.Atoi(arguments[1])
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if len(arguments) == 3 {
+		maxPages, err = strconv.Atoi(arguments[2])
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	cfg := scraper.Config{
+		BaseUrl:            parsedBaseURL,
+		Mu:                 new(sync.RWMutex),
+		ConcurrencyControl: make(chan struct{}, maxGoRoutines),
+		Wg:                 new(sync.WaitGroup),
+		PagesData:          make(map[string]scraper.PageData),
+		MaxPages:           maxPages,
+		PagesOccs:          make(map[string]struct{}),
+	}
+
+	cfg.Wg.Add(1)
+	scraper.CrawlWebsite(arguments[0], &cfg)
+	cfg.Wg.Wait()
+
+	err = scraper.WriteJSONReport(cfg.PagesData)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 }
