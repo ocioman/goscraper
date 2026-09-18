@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 
@@ -158,4 +159,52 @@ func ExtractPageData(HTML, pageURL string) (PageData, error) {
 	}
 
 	return pd, nil
+}
+
+/*
+Casi base: l'URL fornito ha un host diverso da quello di partenza || outgoing links e' vuoto || ho gia' visitato il link
+Sviluppo del recursion tree: ogni outgoing link puo avere n figli che possono essere foglie o nodi (se si verifica uno dei casi base)
+*/
+
+/*
+Page data lo passo come puntatore perche' se con l'append supero la capacity, la copia del puntatore punta a una nuova zona di memoria
+e questa cosa non e' visibile al chiamante
+*/
+
+func CrawlWebsite(baseUrl *url.URL, rawCurrUrl string, pagesOcc map[string]struct{}, data *[]PageData) {
+	parsedCurrUrl, err := url.Parse(rawCurrUrl)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	normalizedCurrUrl, err := NormalizeUrl(rawCurrUrl)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if _, ok := pagesOcc[normalizedCurrUrl]; ok {
+		return
+	}
+
+	if parsedCurrUrl.Host != baseUrl.Host {
+		return
+	}
+
+	pagesOcc[normalizedCurrUrl] = struct{}{}
+
+	rawHTML, err := GetHTML(rawCurrUrl)
+
+	pgData, err := ExtractPageData(rawHTML, rawCurrUrl)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	*data = append(*data, pgData)
+
+	for _, ol := range pgData.OutGoingLinks {
+		CrawlWebsite(baseUrl, ol, pagesOcc, data)
+	}
 }
