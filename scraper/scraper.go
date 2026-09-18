@@ -215,7 +215,7 @@ func CrawlWebsite(rawCurrUrl string, cfg *Config) {
 	rawHTML, err := GetHTML(rawCurrUrl)
 
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	pgData, err := ExtractPageData(rawHTML, rawCurrUrl)

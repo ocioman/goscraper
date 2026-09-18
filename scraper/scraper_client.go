@@ -10,10 +10,11 @@ import (
 )
 
 func GetHTML(rawURL string) (string, error) {
+	log.SetFlags(0)
 	req, err := http.NewRequest("GET", rawURL, nil)
 
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 
 	req.Header.Set("User-Agent", "Scraper/1.0")
@@ -25,7 +26,7 @@ func GetHTML(rawURL string) (string, error) {
 	res, err := cl.Do(req)
 
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 
 	defer func() {
@@ -46,7 +47,7 @@ func GetHTML(rawURL string) (string, error) {
 	body, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 
 	return string(body), nil
