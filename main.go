@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"goscraper/scraper"
 	"log"
@@ -15,7 +16,7 @@ func main() {
 
 	arguments := os.Args[1:]
 
-	if len(arguments) > 3 {
+	if len(arguments) > 4 {
 		log.Fatal("too many arguments provided")
 	} else if len(arguments) == 0 {
 		log.Fatal("no website provided")
@@ -66,5 +67,33 @@ func main() {
 
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if len(arguments) == 4 {
+
+		if arguments[3] != "-s" {
+			log.Fatal("unknown flag")
+		}
+
+		clear(cfg.PagesOccs)
+
+		xmlFile, err := os.Create("sitemap.xml")
+		bw := bufio.NewWriter(xmlFile)
+
+		defer func() {
+			err = bw.Flush()
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			err = xmlFile.Close()
+
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+
+		scraper.Serialize(arguments[0], &cfg, bw)
 	}
 }

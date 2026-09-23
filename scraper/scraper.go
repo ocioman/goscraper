@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"strings"
@@ -233,5 +234,59 @@ func CrawlWebsite(rawCurrUrl string, cfg *Config) {
 	for _, ol := range pgData.OutGoingLinks {
 		cfg.Wg.Add(1)
 		go CrawlWebsite(ol, cfg)
+	}
+}
+
+func Serialize(rawCurrUrl string, cfg *Config, ostream io.Writer) {
+	if len(cfg.PagesOccs) >= cfg.MaxPages {
+		return
+	}
+
+	normalizedUrl, err := NormalizeUrl(rawCurrUrl)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if _, ok := cfg.PagesOccs[normalizedUrl]; ok {
+		writeLeaf(rawCurrUrl, ostream)
+		return
+	}
+
+	cfg.PagesOccs[normalizedUrl] = struct{}{}
+
+	pgData := cfg.PagesData[normalizedUrl]
+
+	if len(pgData.OutGoingLinks) == 0 {
+		writeLeaf(rawCurrUrl, ostream)
+		return
+	}
+
+	node := fmt.Sprintf("<url loc=\"%s\">", rawCurrUrl)
+
+	_, err = io.WriteString(ostream, node)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, ol := range pgData.OutGoingLinks {
+		Serialize(ol, cfg, ostream)
+	}
+
+	_, err = io.WriteString(ostream, "</url>")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func writeLeaf(rawCurrUrl string, ostream io.Writer) {
+	leaf := fmt.Sprintf("<url loc=\"%s\"/>", rawCurrUrl)
+
+	_, err := io.WriteString(ostream, leaf)
+
+	if err != nil {
+		log.Fatal(err)
 	}
 }
