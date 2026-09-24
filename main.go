@@ -94,6 +94,6 @@ func main() {
 			}
 		}()
 
-		scraper.Serialize(arguments[0], &cfg, bw)
+		scraper.Serialize(arguments[0], &cfg, bw, 0)
 	}
 }

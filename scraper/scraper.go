@@ -237,7 +237,7 @@ func CrawlWebsite(rawCurrUrl string, cfg *Config) {
 	}
 }
 
-func Serialize(rawCurrUrl string, cfg *Config, ostream io.Writer) {
+func Serialize(rawCurrUrl string, cfg *Config, ostream io.Writer, depth int) {
 	if len(cfg.PagesOccs) >= cfg.MaxPages {
 		return
 	}
@@ -249,7 +249,7 @@ func Serialize(rawCurrUrl string, cfg *Config, ostream io.Writer) {
 	}
 
 	if _, ok := cfg.PagesOccs[normalizedUrl]; ok {
-		writeLeaf(rawCurrUrl, ostream)
+		writeLeaf(rawCurrUrl, ostream, depth)
 		return
 	}
 
@@ -258,11 +258,13 @@ func Serialize(rawCurrUrl string, cfg *Config, ostream io.Writer) {
 	pgData := cfg.PagesData[normalizedUrl]
 
 	if len(pgData.OutGoingLinks) == 0 {
-		writeLeaf(rawCurrUrl, ostream)
+		writeLeaf(rawCurrUrl, ostream, depth)
 		return
 	}
 
-	node := fmt.Sprintf("<url loc=\"%s\">", rawCurrUrl)
+	ws := strings.Repeat("\t", depth)
+
+	node := fmt.Sprintf("%s<url loc=\"%s\">\n", ws, rawCurrUrl)
 
 	_, err = io.WriteString(ostream, node)
 
@@ -271,18 +273,22 @@ func Serialize(rawCurrUrl string, cfg *Config, ostream io.Writer) {
 	}
 
 	for _, ol := range pgData.OutGoingLinks {
-		Serialize(ol, cfg, ostream)
+		Serialize(ol, cfg, ostream, depth+1)
 	}
 
-	_, err = io.WriteString(ostream, "</url>")
+	closing := fmt.Sprintf("%s</url>\n", ws)
+
+	_, err = io.WriteString(ostream, closing)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func writeLeaf(rawCurrUrl string, ostream io.Writer) {
-	leaf := fmt.Sprintf("<url loc=\"%s\"/>", rawCurrUrl)
+func writeLeaf(rawCurrUrl string, ostream io.Writer, depth int) {
+	ws := strings.Repeat("\t", depth)
+
+	leaf := fmt.Sprintf("%s<url loc=\"%s\"/>\n", ws, rawCurrUrl)
 
 	_, err := io.WriteString(ostream, leaf)
 
