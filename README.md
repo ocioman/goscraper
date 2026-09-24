@@ -53,6 +53,29 @@ Il programma genera `report.json` nella root del progetto con una lista di ogget
 }
 ```
 
+### Serializzazione XML
+
+Per generare anche la struttura XML dei link visitati, aggiungi l'opzione `-s` come quarto argomento:
+
+```bash
+go run . https://example.com 8 50 -s
+```
+
+Oltre a `report.json`, il programma crea `sitemap.xml` nella root del progetto. Il file rappresenta la struttura gerarchica dei link interni: le pagine con link discendenti vengono serializzate come elementi `<url>` annidati, mentre le pagine senza link vengono rappresentate come elementi vuoti.
+
+Esempio:
+
+```xml
+<url loc="https://example.com">
+	<url loc="https://example.com/about"/>
+	<url loc="https://example.com/blog">
+		<url loc="https://example.com/blog/post"/>
+	</url>
+</url>
+```
+
+L'opzione `-s` deve essere utilizzata come quarto argomento; il limite di pagine (`max_pages`) continua ad applicarsi anche alla serializzazione XML.
+
 ### Dettagli tecnici implementativi
 
 - **Gestione concorrenza**
@@ -76,6 +99,7 @@ Il programma genera `report.json` nella root del progetto con una lista di ogget
 - **Serializzazione report**
   - `WriteJSONReport` ordina le pagine per chiave URL normalizzata
   - Scrive un array JSON indentato per output stabile e leggibile
+  - `Serialize` genera `sitemap.xml` tramite un albero ricorsivo dei link interni
 
 ---
 
@@ -132,6 +156,29 @@ The program creates `report.json` at the project root as a list of objects:
 }
 ```
 
+### XML serialization
+
+To also generate the XML representation of the visited links, add the `-s` option as the fourth argument:
+
+```bash
+go run . https://example.com 8 50 -s
+```
+
+In addition to `report.json`, the program creates `sitemap.xml` at the project root. The file represents the hierarchy of internal links: pages with descendant links are serialized as nested `<url>` elements, while pages without links are represented as self-closing elements.
+
+Example:
+
+```xml
+<url loc="https://example.com">
+	<url loc="https://example.com/about"/>
+	<url loc="https://example.com/blog">
+		<url loc="https://example.com/blog/post"/>
+	</url>
+</url>
+```
+
+The `-s` option must be used as the fourth argument; the page limit (`max_pages`) also applies to XML serialization.
+
 ### Technical implementation details
 
 - **Concurrency model**
@@ -155,3 +202,4 @@ The program creates `report.json` at the project root as a list of objects:
 - **Report serialization**
   - `WriteJSONReport` sorts pages by normalized URL key
   - Writes pretty-printed JSON array for deterministic, readable output
+  - `Serialize` generates `sitemap.xml` using a recursive tree of internal links
