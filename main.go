@@ -33,7 +33,7 @@ func main() {
 	maxGoRoutines := 5
 	maxPages := 10
 
-	if len(arguments) == 2 {
+	if len(arguments) >= 2 {
 		maxGoRoutines, err = strconv.Atoi(arguments[1])
 
 		if err != nil {
@@ -41,7 +41,7 @@ func main() {
 		}
 	}
 
-	if len(arguments) == 3 {
+	if len(arguments) >= 3 {
 		maxPages, err = strconv.Atoi(arguments[2])
 
 		if err != nil {

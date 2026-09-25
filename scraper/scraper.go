@@ -10,14 +10,25 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func NormalizeUrl(url string) (string, error) {
+func NormalizeUrl(rawUrl string) (string, error) {
 	var normalized string
 
-	if len(url) == 0 {
+	if len(rawUrl) == 0 {
 		return "", fmt.Errorf("error: url is empty")
 	}
 
-	normalized, _ = strings.CutPrefix(url, "http://")
+	parsed, err := url.Parse(rawUrl)
+
+	if err != nil {
+		return "", err
+	}
+
+	parsed.Fragment = ""
+	parsed.RawFragment = ""
+
+	rawUrl = parsed.String()
+
+	normalized, _ = strings.CutPrefix(rawUrl, "http://")
 	normalized, _ = strings.CutPrefix(normalized, "https://")
 
 	if normalized[len(normalized)-1] == '/' {
